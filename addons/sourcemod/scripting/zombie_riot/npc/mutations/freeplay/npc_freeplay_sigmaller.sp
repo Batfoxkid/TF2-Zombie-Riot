@@ -36,6 +36,7 @@ static const char g_hornsound[][] = {
 };
 
 static int i_sigmaller_particle[MAXENTITIES];
+static int Laser;
 
 void FreeplaySigmaller_OnMapStart_NPC()
 {
@@ -43,6 +44,7 @@ void FreeplaySigmaller_OnMapStart_NPC()
 	strcopy(data.Name, sizeof(data.Name), "SIGMALLER");
 	strcopy(data.Plugin, sizeof(data.Plugin), "npc_freeplay_sigmaller");
 	strcopy(data.Icon, sizeof(data.Icon), "victoria_signaller");
+	Laser = PrecacheModel("materials/sprites/laserbeam.vmt");
 	data.IconCustom = true;
 	data.Flags = MVM_CLASS_FLAG_SUPPORT;
 	data.Category = Type_Mutation;
@@ -162,6 +164,9 @@ public void FreeplaySigmaller_ClotThink(int iNPC)
 {
 	FreeplaySigmaller npc = view_as<FreeplaySigmaller>(iNPC);
 	float gameTime = GetGameTime(npc.index);
+	float distance = 750.0;
+	float sigmapos[3];
+	GetEntPropVector(npc.index, Prop_Data, "m_vecAbsOrigin", sigmapos);
 	bool imalone = false;
 	if(npc.m_flNextDelayTime > gameTime)
 		return;
@@ -235,6 +240,12 @@ public void FreeplaySigmaller_ClotThink(int iNPC)
 	{
 		npc.AddGesture("ACT_MP_ATTACK_STAND_ITEM2");
 		npc.PlayHornSound();
+		sigmapos[2] += 12.0;
+		TE_SetupBeamRingPoint(sigmapos, 1.0, 1000.0, Laser, Laser, 0, 1, 1.0, 10.0, 0.1, { 75, 75, 255, 100 }, 1, 0);
+		TE_SendToAll(0.0);
+		TE_SetupBeamRingPoint(sigmapos, 1.0, 1500.0, Laser, Laser, 0, 1, 0.5, 10.0, 0.1, { 75, 75, 255, 100 }, 1, 0);
+		TE_SendToAll(0.0);
+		sigmapos[2] += 12.0;
 
 		for(int client = 1; client <= MaxClients; client++)
 		{
@@ -242,7 +253,10 @@ public void FreeplaySigmaller_ClotThink(int iNPC)
 			{
 				if(imalone)
 				{
-					SDKHooks_TakeDamage(client, npc.index, npc.index, 400.0, DMG_CLUB, -1);
+					float clientpos[3];
+					GetClientAbsOrigin(client, clientpos);
+					if(GetVectorDistance(clientpos, sigmapos, false) <= distance)
+						SDKHooks_TakeDamage(client, npc.index, npc.index, 500.0, DMG_BULLET, -1);
 				}
 			}
 		}
@@ -264,7 +278,10 @@ public void FreeplaySigmaller_ClotThink(int iNPC)
 				{
 					if(imalone)
 					{
-						SDKHooks_TakeDamage(entity, npc.index, npc.index, 1000.0, DMG_CLUB, -1);
+						float npcpos[3];
+						GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", npcpos);
+						if(GetVectorDistance(npcpos, sigmapos, false) <= distance)
+							SDKHooks_TakeDamage(entity, npc.index, npc.index, 1000.0, DMG_BULLET, -1);
 					}
 				}
 			}
@@ -272,13 +289,11 @@ public void FreeplaySigmaller_ClotThink(int iNPC)
 
 		if(imalone)
 		{
-			HealEntityGlobal(npc.index, npc.index, (float(GetEntProp(npc.index, Prop_Data, "m_iMaxHealth")) * 0.025), 1.0, 0.0, HEAL_ABSOLUTE);
-			fl_Extra_Damage[npc.index] *= 1.025;
-			fl_Extra_MeleeArmor[npc.index] *= 0.975;
-			fl_Extra_RangedArmor[npc.index] *= 0.975;
+			fl_Extra_MeleeArmor[npc.index] *= 0.95;
+			fl_Extra_RangedArmor[npc.index] *= 0.95;
 		}
 
-		npc.m_flNextMeleeAttack = gameTime + 5.0;
+		npc.m_flNextMeleeAttack = gameTime + 6.5;
 	}
 
 	gameTime = GetGameTime() + 0.5;
